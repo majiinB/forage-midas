@@ -2,17 +2,22 @@ package com.jpmc.midascore.component;
 
 import com.jpmc.midascore.entity.TransactionRecord;
 import com.jpmc.midascore.entity.UserRecord;
+import com.jpmc.midascore.foundation.Incentive;
 import com.jpmc.midascore.foundation.Transaction;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.kafka.annotation.KafkaListener;
 import org.springframework.stereotype.Component;
+import org.springframework.web.client.RestTemplate;
 
 @Component
 public class KafkaConsumer {
     @Autowired
     private DatabaseConduit databaseConduit;
+
+    @Autowired
+    private RestTemplate restTemplate;
 
     private static final Logger logger = LoggerFactory.getLogger(KafkaConsumer.class);
 
@@ -49,11 +54,27 @@ public class KafkaConsumer {
             return;
         }
 
+        // Post to incentive jar
+        float incentiveAmount = 0f;
+        try{
+            Incentive incentive = restTemplate.postForObject(
+                    "http://localhost:8080/incentive",
+                    transaction,
+                    Incentive.class
+            );
+
+            if (incentive != null) {
+                incentiveAmount = incentive.getAmount();
+            }
+        } catch (Exception e) {
+            logger.error("Failed to retrieve incentive for transaction {}", transaction, e);
+        }
+
         // Deduct the amount from sender's balance
         sender.setBalance(sender.getBalance() - amount);
 
         // Add the amount to recipient's balance
-        recipient.setBalance(recipient.getBalance() + amount);
+        recipient.setBalance(recipient.getBalance() + amount + incentiveAmount);
 
         logger.info("Updated balances — Sender: {}, Recipient: {}", sender.getBalance(), recipient.getBalance());
 

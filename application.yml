@@ -1,6 +1,9 @@
 general:
   kafka-topic: test-topic
 
+server:
+  port: 33400
+
 spring:
   kafka:
     producer:
@@ -24,3 +27,4 @@ spring:
   jpa:
     hibernate:
       ddl-auto: update
+
